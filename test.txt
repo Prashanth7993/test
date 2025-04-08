@@ -1,0 +1,151 @@
+root@ip-172-31-32-136:/var/lib/jenkins/.kube# history
+    1  clear
+    2  cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+    3  overlay
+    4  br_netfilter
+    5  EOF
+    6  sudo modprobe overlay
+    7  sudo modprobe br_netfilter
+    8  cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+    9  net.bridge.bridge-nf-call-iptables  = 1
+   10  net.bridge.bridge-nf-call-ip6tables = 1
+   11  net.ipv4.ip_forward                 = 1
+   12  EOF
+   13  sudo sysctl --system
+   14  sudo swapoff -a
+   15  (crontab -l 2>/dev/null; echo "@reboot /sbin/swapoff -a") | crontab - || true
+   16  sudo apt-get update -y
+   17  sudo apt-get install -y software-properties-common gpg curl apt-transport-https ca-certificates
+   18  curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key |     gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+   19  echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /" |     tee /etc/apt/sources.list.d/cri-o.list
+   20  sudo apt-get update -y
+   21  sudo apt-get install -y cri-o
+   22  sudo systemctl daemon-reload
+   23  sudo systemctl enable crio --now
+   24  sudo systemctl start crio.service
+   25  VERSION="v1.30.0"
+   26  wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
+   27  sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+   28  rm -f crictl-$VERSION-linux-amd64.tar.gz
+   29  KUBERNETES_VERSION=1.30
+   30  sudo mkdir -p /etc/apt/keyrings
+   31  curl -fsSL https://pkgs.k8s.io/core:/stable:/v$KUBERNETES_VERSION/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+   32  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v$KUBERNETES_VERSION/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+   33  sudo apt-get update -y
+   34  apt-cache madison kubeadm | tac
+   35  sudo apt-get install -y kubelet=1.30.10-1.1 kubectl=1.30.10-1.1 kubeadm=1.30.10-1.1
+   36  sudo apt-get install -y kubelet kubeadm kubectl
+   37  sudo apt-mark hold kubelet kubeadm kubectl
+   38  kubectl get nodes
+   39  kubeadm init
+   40  mkdir -p $HOME/.kube
+   41  kubectl get nodes
+   42  kubectl get po -n kube-system
+   43  kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
+   44  kubectl get po -n kube-system
+   45  watch -n 1 kubectl get po -n kube-system
+   46  clear
+   47  kubectl describe po kmaster
+   48  kubectl describe node kmaster | grep -i taint
+   49  kubectl taint node kmaster node-role.kubernetes.io/control-plane:NoSchedule-
+   50  clear
+   51  kubectl get po -n kube-system
+   52  kubectl create deploy test --image=prashanth7993/java-app -o yaml --dry-run=client >> test.yaml
+   53  ls
+   54  kubectl apply -f test.yaml 
+   55  kubectl get all
+   56  nano test.yaml 
+   57  kubectl apply -f test.yaml 
+   58  nano test.yaml 
+   59  kubectl get all
+   60  kubectl expose deployment test --type=NodePort
+   61  kubectl expose deployment test --type=NodePort --port=5000
+   62  kubectl get svc
+   63  curl 10.100.3.188:5000/hello
+   64  curl 10.100.3.188:5000/
+   65  kubectl delete svc test
+   66  kubectl expose deployment test --type=NodePort --port=8080
+   67  kubectl get svc
+   68  curl -v 10.104.52.53:8080/hello
+   69  clear
+   70  sudo apt update
+   71  sudo apt install fontconfig openjdk-17-jre
+   72  java -version
+   73  openjdk version "17.0.13" 2024-10-15
+   74  OpenJDK Runtime Environment (build 17.0.13+11-Debian-2)
+   75  OpenJDK 64-Bit Server VM (build 17.0.13+11-Debian-2, mixed mode, sharing)
+   76  java -version
+   77  sudo wget -O /usr/share/keyrings/jenkins-keyring.asc   https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+   78  echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc]"   https://pkg.jenkins.io/debian-stable binary/ | sudo tee   /etc/apt/sources.list.d/jenkins.list > /dev/null
+   79  sudo apt-get update
+   80  sudo apt-get install jenkins
+   81  systemctl status jenkins
+   82  curl -fsSL https://get.docker.com -o get-docker.sh
+   83  sh get-docker.sh 
+   84  systemctl status docker
+   85  systemctl status containerd
+   86  clear
+   87  sudo usermod -aG docker jenkins
+   88  chown root:docker /var/run/docker.sock
+   89  cp -R ~/.kube /var/lib/jenkins/
+   90  kubectl get all
+   91  cd /var/lib/jenkins/.kube/
+   92  chown jenkins:jenkins config
+   93  sudo systemctl restart jenkins
+   94  hostnamectl set-hostname kmaster
+   95  sudo su
+   96  clear
+   97  kubeadm init
+   98  kubeadm init --cri-socket unix:///var/run/crio/crio.sock
+   99  kubeadm reset -f
+  100  rm -rf /etc/kubernetes/*
+  101  rm -rf /var/lib/etcd
+  102  rm -rf ~/.kube
+  103  systemctl stop kubelet
+  104  systemctl stop crio
+  105  lsof -i :10250 -i :10257 -i :10259
+  106  kill -9 2035 2036
+  107  systemctl start crio
+  108  systemctl start kubelet
+  109  kubeadm init --cri-socket unix:///var/run/crio/crio.sock
+  110  systemctl status kubelet
+  111  mkdir -p /etc/systemd/system/kubelet.service.d/
+  112  cat <<EOF >/etc/systemd/system/kubelet.service.d/10-crio.conf
+  113  [Service]
+  114  Environment="KUBELET_EXTRA_ARGS=--container-runtime-endpoint=unix:///var/run/crio/crio.sock"
+  115  EOF
+  116  systemctl daemon-reexec
+  117  systemctl daemon-reload
+  118  systemctl restart kubelet
+  119  kubeadm init --cri-socket unix:///var/run/crio/crio.sock
+  120  kubeadm reset -f
+  121  kubeadm reset -f --cri-socket unix:///var/run/crio/crio.sock
+  122  rm -rf /etc/kubernetes/
+  123  rm -rf /var/lib/etcd
+  124  rm -rf /var/lib/kubelet/*
+  125  rm -rf ~/.kube
+  126  systemctl stop kubelet
+  127  systemctl stop crio
+  128  lsof -i :6443 -i :10250 -i :10257 -i :10259 -i :2379 -i :2380
+  129  kill -9 <PID>
+  130  lsof -i :6443 -i :10250 -i :10257 -i :10259 -i :2379 -i :2380
+  131  kubeadm reset -f --cri-socket unix:///var/run/crio/crio.sock
+  132  rm -rf /etc/kubernetes/ /var/lib/etcd /var/lib/kubelet/* ~/.kube
+  133  systemctl start crio
+  134  systemctl start kubelet
+  135  kubeadm init --cri-socket unix:///var/run/crio/crio.sock
+  136  mkdir -p $HOME/.kube
+  137  clear
+  138  clear
+  139  systemctl status jenkins
+  140  sudo su
+  141  cat /var/lib/jenkins/secrets/initialAdminPassword
+  142  sudo usermod -aG docker jenkins
+  143  chown root:docker /var/run/docker.sock
+  144  cp -R ~/.kube /var/lib/jenkins/
+  145  cd /var/lib/jenkins/.kube/
+  146  chown jenkins:jenkins config
+  147  systemctl restart jenkins
+  148  cat /var/lib/jenkins/secrets/initialAdminPassword
+  149  clear
+  150  history
